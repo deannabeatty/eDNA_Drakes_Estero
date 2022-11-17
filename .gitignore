@@ -37,3 +37,27 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# MacOSX track changes for timemachine
+*.DS_Store
+
+# qza files
+/qza/*
+
+# clean
+/clean/*
+
+# mitohelper ref
+/mitohelper_reference/*
+
+# phyloseq obj
+/phyloseq_objects/*
+
+# plots
+/plots/*
+
+# summary
+/summary/*
+
+# out files
+/out_files/*
