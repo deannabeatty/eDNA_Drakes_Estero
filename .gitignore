@@ -37,3 +37,6 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# MacOSX track changes for timemachine
+*.DS_Store
