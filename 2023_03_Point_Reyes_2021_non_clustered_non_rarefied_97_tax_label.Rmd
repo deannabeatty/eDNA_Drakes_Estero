@@ -1,0 +1,319 @@
+---
+title: "2023_03_Point_Reyes_2021_non_clustered_non_rarefied_97_tax_label"
+author: "Deanna Beatty"
+output: html_document
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(eval = TRUE, echo = FALSE, include = TRUE, fig.show=TRUE) #global options
+```
+
+Package versions for phyloseq, vegan, ggplot2, tidyverse, ggpubr, ggsci
+
+```{r, echo=FALSE, message=FALSE}
+library(phyloseq); packageVersion("phyloseq")
+library(vegan); packageVersion("vegan")
+library(ggplot2); packageVersion("ggplot2")
+library(tidyverse); packageVersion("tidyverse")
+library(ggpubr); packageVersion("ggpubr")
+library(ggsci); packageVersion("ggsci")
+
+```
+
+```{r import phyloseq objects, results=FALSE}
+Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered <- readRDS(file = "phyloseq_objects/Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered.rds")
+
+# rename levels of factor
+sample_data(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)$Site_name <- gsub("Schooners mouth of bay", "SB west", sample_data(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)$Site_name)
+
+sample_data(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)$Site_name <- gsub("Schooners Bay access road", "SB east", sample_data(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)$Site_name)
+
+sample_data(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)$Site_name <- gsub("Limatour Beach", "Limantour Beach", sample_data(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)$Site_name)
+
+sample_data(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)$Site_name <- gsub("Homes Bay", "Home Bay", sample_data(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)$Site_name)
+
+sample_data(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)$Site_name <- gsub("Bed 22", "Creamery Bay", sample_data(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)$Site_name)
+
+# order factor levels
+sample_data(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)$Site_name <- factor(sample_data(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)$Site_name, levels=c("SB east", "SB west", "Home Bay", "Creamery Bay", "Limantour Beach"))
+
+```
+
+```{r species assignments}
+# non-rarefied and non-clustered data 
+
+# melt phyloseq object to df
+all_sites <- psmelt(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)
+
+length(unique(all_sites$OTU)) # 1519 sequence variants ("OTU" in phyloseq objects show unique hashid of sequence variants from DADA2)
+# remove sequence variants without species level assignments
+all_sites_seq_variants_spp_assignments <- filter(all_sites, !is.na(Species))
+length(unique(all_sites_seq_variants_spp_assignments$OTU)) # 717 sequence variants with species level assignments (47% of sequences)
+length(unique(all_sites_seq_variants_spp_assignments$Species)) # 8 species assignments
+unique(all_sites_seq_variants_spp_assignments$Species) # names of unique species
+eDNA_species <- as.data.frame(unique(all_sites_seq_variants_spp_assignments$Species))
+names(eDNA_species)[1] <- "Taxonomy"
+
+# subset to estuarine sites only
+Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered_estuaries <- Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered %>%  subset_samples(Site_name != "Limantour Beach")
+
+# melt phyloseq object to df
+estuary_sites <- psmelt(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered_estuaries)
+
+# obtain total number of unique sequence variants for estuary sites
+# select columns of interest and remove rows with zero counts
+estuary_sites_subset <- subset(estuary_sites, select = c(Abundance, Species, Site_name, Sample, OTU)) %>% filter(Abundance != "0") %>% arrange(Sample)
+length(unique(estuary_sites_subset$OTU)) # 1211 sequence variants
+# remove sequence variants without species level assignments
+estuary_sites_seq_variants_spp_assignments <- filter(estuary_sites_subset, !is.na(Species))
+length(unique(estuary_sites_seq_variants_spp_assignments$OTU)) # 582 sequence variants with species level assignments (48% of sequences)
+length(unique(estuary_sites_seq_variants_spp_assignments$Species)) # 6 species level assignments 
+unique(estuary_sites_seq_variants_spp_assignments$Species) # names of unique species
+estuarine_eDNA_species <- as.data.frame(unique(estuary_sites_seq_variants_spp_assignments$Species))
+names(estuarine_eDNA_species)[1] <- "Taxonomy"
+
+# calculate the number of sequence variants per species
+sp_table = list()
+spp_assigned_sv = unique(estuary_sites_seq_variants_spp_assignments$Species)
+
+for (i in seq_along(spp_assigned_sv)) {
+  temp = filter(estuary_sites, Species == spp_assigned_sv[i])
+  number_sv = length(unique(temp$OTU))
+  name = spp_assigned_sv[i]
+  row = data.frame(Species = name, Number_of_sequence_variants = number_sv)
+  sp_table[[i]] <- row
+}
+
+# bind items in list with bind_rows
+sp_table_sv <- bind_rows(sp_table)
+
+write.csv("out_files/estuarine_sites_species_number_of_sequence_variants.csv")
+
+# subset dataframe to each site to obtain unique sequence variants for each site; remove rows with zero counts
+SB_east <- estuary_sites %>% filter(Site_name == "SB east") %>% filter(Abundance != "0")
+SB_west <- estuary_sites %>% filter(Site_name == "SB west") %>% filter(Abundance != "0")
+Creamery_Bay <- estuary_sites %>% filter(Site_name == "Creamery Bay") %>% filter(Abundance != "0")
+Home_Bay <- estuary_sites %>% filter(Site_name == "Home Bay") %>% filter(Abundance != "0")
+
+# number of sequence variants per site
+SB_east_svs <- length(unique(SB_east$OTU))
+SB_east_svs # 294
+SB_west_svs <- length(unique(SB_west$OTU))
+SB_west_svs # 289
+Creamery_Bay_svs <- length(unique(Creamery_Bay$OTU))
+Creamery_Bay_svs # 382
+Home_Bay_svs <- length(unique(Home_Bay$OTU))
+Home_Bay_svs # 398
+```
+
+```{r sequence variant accum vegan}
+# melt with metadata
+df = psmelt(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered)
+length(unique(df$OTU)) # 1519 unique sequence variants 
+
+# subset to columns abundance, sample, OTU
+df_sub <- subset(df, select = c(Abundance, Sample, OTU))
+# pivot wider
+df_sub_w <- df_sub %>%
+  pivot_wider(names_from = OTU, values_from = Abundance)
+# sample as row names
+row.names(df_sub_w) <- df_sub_w$Sample
+# remove sample column
+df_sp_all <- subset(df_sub_w, select = -c(Sample))
+
+# spec accum for all data
+SpAccAll <- specaccum(df_sp_all, method = "random")
+summary(SpAccAll)
+plot(SpAccAll, ci.type="poly", col="darkblue", lwd=2, ci.lty=0, ci.col="lightblue")
+boxplot(SpAccAll)
+SpAccAll
+
+# repeat with estuarine sites only
+# remove Limantour Beach samples
+df_red <- df %>% filter(Site_name != "Limantour Beach")
+
+# subset to columns abundance, sample, OTU
+df_red_sub <- subset(df_red, select = c(Abundance, Sample, OTU))
+# pivot wider
+df_red_sub_w <- df_red_sub %>%
+  pivot_wider(names_from = OTU, values_from = Abundance)
+# make column Sample to row names
+df_red_sp <- df_red_sub_w %>% remove_rownames %>% column_to_rownames(var="Sample")
+
+# spec accum on estuarine sites
+SpAccRedAll <- specaccum(df_red_sp, method = "random")
+summary(SpAccRedAll)
+plot(SpAccRedAll, ci.type="poly", col="darkblue", lwd=2, ci.lty=0, ci.col="lightblue")
+boxplot(SpAccRedAll)
+SpAccRedAll
+
+#creating a dataframe for ggplot2
+SpAccRedAlldf <- data.frame(Sites=as.numeric(SpAccRedAll$sites), Richness=SpAccRedAll$richness, SD=SpAccRedAll$sd)
+SpAccRedAlldf$Sites <- order(SpAccRedAlldf$Sites)
+
+eDNA_sv_acumm_red <- ggplot(data=SpAccRedAlldf) +
+  geom_point(aes(x=Sites, y=Richness)) +
+  geom_line(aes(x=Sites, y=Richness)) +
+  geom_ribbon(aes(x=Sites, ymin=(Richness-SD),ymax=(Richness+SD)),alpha=0.2) +
+  theme(axis.text=element_text(size=14), axis.title = element_text(size = 14) ) +
+  theme_classic() +
+  ylab("Richness") +
+  xlab("Sample size")
+
+eDNA_sv_acumm_red
+
+# Creamery Bay format data
+df_Creamery_Bay <- filter(df, Site_name == "Creamery Bay")
+df_Creamery_Bay <- subset(df_Creamery_Bay, select = c(Abundance, site_replicate, OTU))
+df_Creamery_Bay_w <- df_Creamery_Bay %>%
+  pivot_wider(names_from = OTU, values_from = Abundance)
+df_Creamery_Bay_w$site_replicate <- (as.numeric(df_Creamery_Bay_w$site_replicate))
+row.names(df_Creamery_Bay_w) <- df_Creamery_Bay_w$site_replicate
+df_Cream <- subset(df_Creamery_Bay_w, select = -c(site_replicate))
+
+# Creamery Bay specaccum
+SpAccCream <- specaccum(df_Cream, method = "random")
+summary(SpAccCream)
+plot(SpAccCream, ci.type="poly", col="darkblue", lwd=2, ci.lty=0, ci.col="lightblue")
+boxplot(SpAccCream)
+SpAccCream
+
+#creating a dataframe for ggplot2
+SpAccCreamerydf <- data.frame(Sites=as.numeric(SpAccCream$sites), Richness=SpAccCream$richness, SD=SpAccCream$sd)
+SpAccCreamerydf$Sites <- order(SpAccCreamerydf$Sites)
+SpAccCreamerydf$Location <- c("Creamery Bay")
+
+eDNA_sv_acumm_Creamery <- ggplot(data=SpAccCreamerydf) +
+  geom_point(aes(x=Sites, y=Richness)) +
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10)) +
+  geom_line(aes(x=Sites, y=Richness)) +
+  geom_ribbon(aes(x=Sites, ymin=(Richness-SD),ymax=(Richness+SD)),alpha=0.2) +
+  theme(axis.text=element_text(size=14), axis.title = element_text(size = 14)) +
+  ylab("OTU richness") +
+  xlab("Sample size")
+
+eDNA_sv_acumm_Creamery
+
+# Homes Bay format data
+df_Home <- filter(df, Site_name == "Home Bay")
+df_Home <- subset(df_Home, select = c(Abundance, site_replicate, OTU))
+df_Home_w <- df_Home %>%
+  pivot_wider(names_from = OTU, values_from = Abundance)
+df_Home_w$site_replicate <- (as.numeric(df_Home_w$site_replicate))
+row.names(df_Home_w) <- df_Home_w$site_replicate
+df_Home <- subset(df_Home_w, select = -c(site_replicate))
+
+# Home Bay spec accum
+SpAccHome <- specaccum(df_Home, method = "random")
+summary(SpAccHome)
+plot(SpAccHome, ci.type="poly", col="darkblue", lwd=2, ci.lty=0, ci.col="lightblue")
+boxplot(SpAccHome)
+SpAccHome
+
+#creating a dataframe for ggplot2
+SpAccHomedf <- data.frame(Sites=as.numeric(SpAccHome$sites), Richness=SpAccHome$richness, SD=SpAccHome$sd)
+SpAccHomedf$Sites <- order(SpAccHomedf$Sites)
+SpAccHomedf$Location <- c("Home Bay")
+
+eDNA_sv_acumm_Home <- ggplot(data=SpAccHomedf) +
+  geom_point(aes(x=Sites, y=Richness)) +
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10)) +
+  scale_y_continuous(limits = c(10, 80)) +
+  geom_line(aes(x=Sites, y=Richness)) +
+  geom_ribbon(aes(x=Sites, ymin=(Richness-SD),ymax=(Richness+SD)),alpha=0.2) +
+  theme(axis.text=element_text(size=14), axis.title = element_text(size = 14)) +
+  ylab("OTU richness") +
+  xlab("Sample size")
+
+eDNA_sv_acumm_Home
+
+#SB east format data
+df_SB_east <- filter(df, Site_name == "SB east")
+df_SB_east <- subset(df_SB_east, select = c(Abundance, site_replicate, OTU))
+df_SB_east_w <- df_SB_east %>%
+  pivot_wider(names_from = OTU, values_from = Abundance)
+df_SB_east_w$site_replicate <- (as.numeric(df_SB_east_w$site_replicate))
+row.names(df_SB_east_w) <- df_SB_east_w$site_replicate
+df_SB_e <- subset(df_SB_east_w, select = -c(site_replicate))
+
+#SB east specaccum
+SpAccSBe <- specaccum(df_SB_e, method = "random")
+summary(SpAccSBe)
+plot(SpAccSBe, ci.type="poly", col="darkblue", lwd=2, ci.lty=0, ci.col="lightblue")
+boxplot(SpAccSBe)
+SpAccSBe
+
+#creating a dataframe for ggplot2
+SpAccSBedf <- data.frame(Sites=as.numeric(SpAccSBe$sites), Richness=SpAccSBe$richness, SD=SpAccSBe$sd)
+SpAccSBedf$Sites <- order(SpAccSBedf$Sites)
+SpAccSBedf$Location <- c("SB east")
+
+eDNA_sv_acumm_SB_east <- ggplot(data=SpAccSBedf) +
+  geom_point(aes(x=Sites, y=Richness)) +
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10)) +
+  geom_line(aes(x=Sites, y=Richness)) +
+  geom_ribbon(aes(x=Sites, ymin=(Richness-SD),ymax=(Richness+SD)),alpha=0.2) +
+  theme(axis.text=element_text(size=14), axis.title = element_text(size = 14)) +
+  ylab("OTU richness") +
+  xlab("Sample size")
+
+eDNA_sv_acumm_SB_east
+
+#SB west format data 
+df_SB_west <- filter(df, Site_name == "SB west")
+df_SB_west <- subset(df_SB_west, select = c(Abundance, site_replicate, OTU))
+df_SB_west_w <- df_SB_west %>%
+  pivot_wider(names_from = OTU, values_from = Abundance)
+df_SB_west_w$site_replicate <- (as.numeric(df_SB_west_w$site_replicate))
+row.names(df_SB_west_w) <- df_SB_west_w$site_replicate
+df_SB_w <- subset(df_SB_west_w, select = -c(site_replicate))
+
+#SB west specaccum
+SpAccSBw <- specaccum(df_SB_w, method = "random")
+summary(SpAccSBw)
+plot(SpAccSBw, ci.type="poly", col="darkblue", lwd=2, ci.lty=0, ci.col="lightblue")
+boxplot(SpAccSBw)
+SpAccSBw
+
+#creating a dataframe for ggplot2
+SpAccSBwdf <- data.frame(Sites=as.numeric(SpAccSBw$sites), Richness=SpAccSBw$richness, SD=SpAccSBw$sd)
+SpAccSBwdf$Sites <- order(SpAccSBwdf$Sites)
+SpAccSBwdf$Location <- c("SB west")
+
+eDNA_sv_acumm_SB_west <- ggplot(data=SpAccSBwdf) +
+  geom_point(aes(x=Sites, y=Richness)) +
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10)) +
+  geom_line(aes(x=Sites, y=Richness)) +
+  geom_ribbon(aes(x=Sites, ymin=(Richness-SD),ymax=(Richness+SD)),alpha=0.2) +
+  theme(axis.text=element_text(size=14), axis.title = element_text(size = 14)) +
+  ylab("OTU richness") +
+  xlab("Sample size")
+
+eDNA_sv_acumm_SB_west
+
+# rbind estuary dfs
+estuarine_sites_specaccum <- rbind(SpAccSBedf, SpAccSBwdf, SpAccHomedf, SpAccCreamerydf)
+
+# assign hexidecimal color codes to variable
+mypalNEJM_4 =  c("#BC3C29FF", "#0072B5FF", "#E18727FF", "#20854EFF")
+names(mypalNEJM_4) = c("SB east", "SB west", "Home Bay", "Creamery Bay")
+
+eDNA_sv_acumm_estuarine_sites <- ggplot(data=estuarine_sites_specaccum, mapping = aes(color = Location)) +
+  geom_point(aes(x=Sites, y=Richness)) +
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10)) +
+  scale_colour_manual(values = mypalNEJM_4) +
+  geom_line(aes(x=Sites, y=Richness)) +
+  geom_ribbon(aes(x=Sites, ymin=(Richness-SD),ymax=(Richness+SD)),alpha=0.2) +
+  theme(axis.text=element_text(size=14), axis.title = element_text(size = 14)) +
+  theme_classic() +
+  ylab("Sequence variant richness") +
+  xlab("Sample size")
+
+eDNA_sv_acumm_estuarine_sites
+
+Figure_sequence_variant_acumm_stack <- ggarrange(eDNA_sv_acumm_estuarine_sites, eDNA_sv_acumm_red, labels = c("A", "B"), ncol = 2, nrow = 1, align = "hv", heights = c(1,1))
+Figure_sequence_variant_acumm_stack
+ggsave(Figure_sequence_variant_acumm_stack, file = "plots/Figure_sequence_variant_acumm_stack.png", 
+        dpi = 400, device = "png", width = 11, height = 8.5, units = "in")
+
+```
