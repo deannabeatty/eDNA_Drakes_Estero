@@ -71,3 +71,12 @@ Point_Reyes_fish_2021_phyloseq_obj_99_rarefied <- qza_to_phyloseq(
 )
 saveRDS(Point_Reyes_fish_2021_phyloseq_obj_99_rarefied, file = "phyloseq_objects/Point_Reyes_fish_2021_phyloseq_obj_99_rarefied.rds")
 view(tax_table(Point_Reyes_fish_2021_phyloseq_obj_99_rarefied))
+
+# create phyloseq object on non-clustered and non-rarefied data with 97% similarity
+Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered <- qza_to_phyloseq(
+  features = "qza_files/table_fish_2021_dada2.qza",
+  taxonomy = "qza_files/rep_seqs_fish_2021_dada2_mitofish_blast_taxonomy_12S_16S_18S_97.qza",
+  metadata = "clean/DE_2021_eDNA_metadata.txt"
+)
+saveRDS(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered, file = "phyloseq_objects/Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered.rds")
+view(tax_table(Point_Reyes_fish_2021_phyloseq_obj_nonrarefied_nonclustered))
